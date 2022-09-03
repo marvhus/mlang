@@ -131,45 +131,80 @@ _start:
     syscall
             """)
 
-# TODO: unhardcode program (load from file)
-program = [
-    push(34),
-    push(35),
-    plus(),
-    dump(),
+def load_program_from_file(program_path):
+    program = []
+    valid_syntax = True
+    with open(program_path, "r") as file:
+        for line in file.read().split('\n'):
+            comment = False
+            for op in line.split(' '):
+                if comment:
+                    continue
+                elif "//" in op:
+                    comment = True
+                elif op == '.':
+                    program.append(dump())
+                elif op == '+':
+                    program.append(plus())
+                elif op == '-':
+                    program.append(minus())
+                elif op.isdigit():
+                    program.append(push(int(op)))
+                elif op == ' ' or op == '':
+                    pass
+                else:
+                    print(f"ERROR: {op} is not valid syntax")
+                    valid_syntax = False
+    assert valid_syntax, "Syntax Error"
+    return program
 
-    push(500),
-    push(80),
-    minus(),
-    dump(),
-]
-
-def usage():
-        print("""
-Usage: mlang.py <SUBCOMMAND> [ARGS]
+def usage(program):
+        print(f"""
+Usage: {program} <SUBCOMMAND> [ARGS]
 SUBCOMMANDS:
-    - sim  -- Simulate the program
-    - com  -- Compile the program
+    - sim <file>  -- Simulate the program
+    - com <file>  -- Compile the program
         """)
 
 def call_cmd(cmd):
     print(cmd)
     subprocess.call(cmd.split(' '))
 
+def uncons(xs):
+    return (xs[0], xs[1:])
+
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        usage()
+    argv = sys.argv
+
+    assert len(argv) >= 1, "No program"
+
+    (program_name, argv) = uncons(argv)
+    if len(argv) < 1:
+        usage(program_name)
         print("ERROR: no subcomand provided")
         exit(1)
 
-    subcommand = sys.argv[1]
+    (subcommand, argv) = uncons(argv)
+
     if subcommand == 'sim':
+        if len(argv) < 1:
+            usage(program_name)
+            print("ERROR: No input file for the simulation")
+            exit(1)
+        (program_path, argv) = uncons(argv)
+        program = load_program_from_file(program_path)
         simulate_program(program)
     elif subcommand == 'com':
+        if len(argv) < 1:
+            usage(program)
+            print("ERROR: No input file for the compilation")
+            exit(1)
+        (program_path, argv) = uncons(argv)
+        program = load_program_from_file(program_path)
         compile_program(program, "output.asm")
         call_cmd("nasm -felf64 output.asm")
         call_cmd("ld -o output output.o")
         call_cmd("rm -rf output.o")
     else:
-        usage()
+        usage(program_name)
         assert False, f"Unknown subcommand, {subcommand}"
