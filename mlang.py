@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
     (subcommand, argv) = uncons(argv)
 
-    if subcommand == 'sim':
+    if subcommand == 'sim' or subcommand == 'simulate':
         if len(argv) < 1:
             usage(program_name)
             print("ERROR: No input file for the simulation")
@@ -194,7 +194,7 @@ if __name__ == '__main__':
         (program_path, argv) = uncons(argv)
         program = load_program_from_file(program_path)
         simulate_program(program)
-    elif subcommand == 'com':
+    elif subcommand == 'com' or subcommand == 'compile':
         if len(argv) < 1:
             usage(program)
             print("ERROR: No input file for the compilation")
