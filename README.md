@@ -5,12 +5,12 @@ MLANG is a programming language made in python based of how tscoding made porth
 
 Simulate:
 ``` sh
-$ ./mlang.py sim
+$ ./mlang.py sim test.mlang
 ```
 
 Compile:
 ``` sh
-$ ./mlang.py com
+$ ./mlang.py com test.mlang
 $ ./output
 ```
 
