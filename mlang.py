@@ -133,10 +133,10 @@ _start:
 
 is_comment = False
 comment_row = 0
-def parse_word_as_op(token):
+def parse_token_as_op(token):
     global is_comment
     global comment_row
-    assert COUNT_OPS == 4, "Exhaustive handeling in parse_word_as_op"
+    assert COUNT_OPS == 4, "Exhaustive handeling in parse_token_as_op"
     # Comment handeling
     if is_comment and comment_row == token[1]:
         return None
@@ -181,7 +181,7 @@ def lex_file(file_path):
                 for (col, token) in lex_line(line)]
 
 def load_program_from_file(program_path):
-    return list(filter(lambda x: not x == None, [parse_word_as_op(token) for token in lex_file(program_path)]))
+    return list(filter(lambda x: not x == None, [parse_token_as_op(token) for token in lex_file(program_path)]))
 
 def usage(program):
         print(f"""
