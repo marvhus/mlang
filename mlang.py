@@ -131,32 +131,57 @@ _start:
     syscall
             """)
 
+is_comment = False
+comment_row = 0
+def parse_word_as_op(token):
+    global is_comment
+    global comment_row
+    assert COUNT_OPS == 4, "Exhaustive handeling in parse_word_as_op"
+    # Comment handeling
+    if is_comment and comment_row == token[1]:
+        return None
+    else:
+        is_comment == False
+    if '//' in token[3]:
+        is_comment = True
+        comment_row = token[1]
+        return None
+    # Op handeling
+    if token[3] == '+':
+        return plus()
+    if token[3] == '-':
+        return minus()
+    if token[3] == '.':
+        return dump()
+    if token[3].isspace():
+        return None
+    try:
+        return push(int(token[3]))
+    except Exception as e:
+        print( f"SyntaxError: in {token[0]} at ({token[1]}, {token[2]}) {token[3]} is not valid syntax\n{e}" )
+        exit(1)
+
+def find_col(line, start, predicate):
+    while start < len(line) and not predicate(line[start]):
+        start += 1
+    return start
+
+def lex_line(line):
+    col = find_col(line, 0, lambda x: not x.isspace())
+    while col < len(line):
+        col_end = find_col(line, col, lambda x: x.isspace())
+        yield (col, line[col:col_end])
+        col = find_col(line, col_end, lambda x: not x.isspace())
+
+def lex_file(file_path):
+    lex = []
+    with open(file_path, "r") as file:
+        return [(file_path, row+1, col, token)
+                for (row, line) in enumerate(file.readlines())
+                for (col, token) in lex_line(line)]
+
 def load_program_from_file(program_path):
-    program = []
-    valid_syntax = True
-    with open(program_path, "r") as file:
-        for line in file.read().split('\n'):
-            comment = False
-            for op in line.split(' '):
-                if comment:
-                    continue
-                elif "//" in op:
-                    comment = True
-                elif op == '.':
-                    program.append(dump())
-                elif op == '+':
-                    program.append(plus())
-                elif op == '-':
-                    program.append(minus())
-                elif op.isdigit():
-                    program.append(push(int(op)))
-                elif op == ' ' or op == '':
-                    pass
-                else:
-                    print(f"ERROR: {op} is not valid syntax")
-                    valid_syntax = False
-    assert valid_syntax, "Syntax Error"
-    return program
+    return list(filter(lambda x: not x == None, [parse_word_as_op(token) for token in lex_file(program_path)]))
 
 def usage(program):
         print(f"""
@@ -193,6 +218,7 @@ if __name__ == '__main__':
             exit(1)
         (program_path, argv) = uncons(argv)
         program = load_program_from_file(program_path)
+        print(program)
         simulate_program(program)
     elif subcommand == 'com' or subcommand == 'compile':
         if len(argv) < 1:
