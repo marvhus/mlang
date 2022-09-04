@@ -1,5 +1,5 @@
 # MLANG
-MLANG is a programming language made in python based of how tscoding made porth
+MLANG is a programming language made in python based of how [tscoding](https://www.youtube.com/watch?v=8QP2fDBIxjM&list=PLpM-Dvs8t0VbMZA7wW9aR3EtBqe2kinu4) made [porth](https://gitlab.com/tsoding/porth)
 
 ## Quick Start
 
