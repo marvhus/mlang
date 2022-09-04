@@ -158,8 +158,8 @@ def parse_token_as_op(token):
         return None
     try:
         return push(int(token))
-    except ValueError as e:
-        print( f"SyntaxError: in {file_path} at ({row}, {col}) {token} is not valid syntax\n{e}" )
+    except ValueError as err:
+        print( "%s:%d:%d: %s" % (file_path, row, col, err) )
         exit(1)
 
 def find_col(line, start, predicate):
