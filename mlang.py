@@ -158,7 +158,7 @@ def parse_token_as_op(token):
         return None
     try:
         return push(int(token))
-    except Exception as e:
+    except ValueError as e:
         print( f"SyntaxError: in {file_path} at ({row}, {col}) {token} is not valid syntax\n{e}" )
         exit(1)
 
