@@ -137,28 +137,29 @@ def parse_token_as_op(token):
     global is_comment
     global comment_row
     assert COUNT_OPS == 4, "Exhaustive handeling in parse_token_as_op"
+    (file_path, row, col, token) = token
     # Comment handeling
-    if is_comment and comment_row == token[1]:
+    if is_comment and comment_row == row:
         return None
     else:
         is_comment == False
-    if '//' in token[3]:
+    if '//' in token:
         is_comment = True
-        comment_row = token[1]
+        comment_row = row
         return None
     # Op handeling
-    if token[3] == '+':
+    if token == '+':
         return plus()
-    if token[3] == '-':
+    if token == '-':
         return minus()
-    if token[3] == '.':
+    if token == '.':
         return dump()
-    if token[3].isspace():
+    if token.isspace():
         return None
     try:
-        return push(int(token[3]))
+        return push(int(token))
     except Exception as e:
-        print( f"SyntaxError: in {token[0]} at ({token[1]}, {token[2]}) {token[3]} is not valid syntax\n{e}" )
+        print( f"SyntaxError: in {file_path} at ({row}, {col}) {token} is not valid syntax\n{e}" )
         exit(1)
 
 def find_col(line, start, predicate):
@@ -218,7 +219,6 @@ if __name__ == '__main__':
             exit(1)
         (program_path, argv) = uncons(argv)
         program = load_program_from_file(program_path)
-        print(program)
         simulate_program(program)
     elif subcommand == 'com' or subcommand == 'compile':
         if len(argv) < 1:
