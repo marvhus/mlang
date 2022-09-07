@@ -234,6 +234,7 @@ if __name__ == '__main__':
         exit(1)
 
     (subcommand, argv) = uncons(argv)
+    compiled = False
 
     if subcommand == 'sim' or subcommand == 'simulate':
         if len(argv) < 1:
@@ -258,10 +259,14 @@ if __name__ == '__main__':
         call_cmd("nasm -felf64 output.asm")
         call_cmd("ld -o output output.o")
         call_cmd("rm -rf output.o")
+        compiled = True
 
         if len(argv) >= 1:
             for flag in argv:
                 if flag == '-r':
+                    if not compiled:
+                        print("[ERROR] Program was not compiled, skipping '-r'")
+                        continue
                     print('[INFO] Running compiled program')
                     call_cmd("./output")
     else:
