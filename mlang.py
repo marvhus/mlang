@@ -9,32 +9,47 @@ def iota(reset=False):
     iota_counter += 1
     return result
 
-OP_PUSH = iota(True)
-OP_PLUS = iota()
-OP_MINUS = iota()
-OP_EQUAL=iota()
-OP_DUMP = iota()
-COUNT_OPS = iota()
+OP_PUSH   = iota(True) # 0
+OP_PLUS   = iota()     # 1
+OP_MINUS  = iota()     # 2
+OP_EQUAL  = iota()     # 3
+OP_DUMP   = iota()     # 4
+OP_IF     = iota()     # 5
+OP_ELSE   = iota()     # 6
+OP_END    = iota()     # 7
+COUNT_OPS = iota()     # 8
 
-def push(x):
+def op_push(x):
     return (OP_PUSH, x)
 
-def plus():
+def op_plus():
     return (OP_PLUS, )
 
-def minus():
+def op_minus():
     return (OP_MINUS, )
 
-def equal():
+def op_equal():
     return (OP_EQUAL, )
 
-def dump():
+def op_dump():
     return (OP_DUMP, )
+
+def op_if():
+    return (OP_IF, )
+
+def op_else():
+    return (OP_ELSE, )
+
+def op_end():
+    return (OP_END, )
 
 def simulate_program(program):
     stack = []
-    for op in program:
-        assert COUNT_OPS == 5, "Exhaustive handling of oprations in simulation"
+    ip = 0
+    while ip < len(program):
+        assert COUNT_OPS == 8, "Exhaustive handling of oprations in simulation"
+
+        op = program[ip]
 
         if op[0] == OP_PUSH:
             if len(op) < 2:
@@ -55,12 +70,24 @@ def simulate_program(program):
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
+        elif op[0] == OP_IF:
+            assert len(op) >= 2, "`if` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to simulate it"
+            a = stack.pop()
+            if a:
+                ip = op[1]
+        elif op[0] == OP_ELSE:
+            pass
+        elif op[0] == OP_END:
+            pass
         else:
+            print(op)
             assert False, "unreachable"
+
+        ip += 1
 
 def compile_program(program, out_file_path):
         with open(out_file_path, "w") as out:
-            assert COUNT_OPS == 5, "Exhaustive handling of oprations in compilation"
+            assert COUNT_OPS == 8, "Exhaustive handling of oprations in compilation"
 
             out.write("""
 BITS 64
@@ -97,7 +124,7 @@ global _start
 _start:
             """)
 ##### LOOP OVER OPs IN PROGRAM
-            for op in program:
+            for ip, op in enumerate(program):
                 if op[0] == OP_PUSH:
                     if len(op) < 2:
                         assert False, "no push value"
@@ -130,12 +157,26 @@ _start:
     pop rbx
     cmp rax, rbx
     cmove rcx, rdx
+    push rcx
                     """)
                 elif op[0] == OP_DUMP:
                     out.write("""
 ;; -- dump --
     pop rdi
     call dump
+                    """)
+                elif op[0] == OP_IF:
+                    assert len(op) >= 2, "`if` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to compile it"
+                    out.write(f"""
+;; -- if --
+    pop rax
+    test rax, rax
+    jz addr_{op[1]}
+                    """)
+                elif op[0] == OP_END:
+                    out.write(f"""
+;; -- end --
+addr_{ip}:
                     """)
                 else:
                     assert False, "unreachable"
@@ -152,7 +193,7 @@ comment_row = 0
 def parse_token_as_op(token):
     global is_comment
     global comment_row
-    assert COUNT_OPS == 5, "Exhaustive handeling in parse_token_as_op"
+    assert COUNT_OPS == 8, "Exhaustive handeling in parse_token_as_op"
     (file_path, row, col, token) = token
     # Comment handeling
     if is_comment and comment_row == row:
@@ -165,20 +206,38 @@ def parse_token_as_op(token):
         return None
     # Op handeling
     if token == '+':
-        return plus()
+        return op_plus()
     if token == '-':
-        return minus()
+        return op_minus()
     if token == '=':
-        return equal()
+        return op_equal()
     if token == '.':
-        return dump()
+        return op_dump()
+    if token == 'if':
+        return op_if()
+    if token == 'else':
+        return op_else()
+    if token == 'end':
+        return op_end()
     if token.isspace():
         return None
     try:
-        return push(int(token))
+        return op_push(int(token))
     except ValueError as err:
         print( "%s:%d:%d: %s" % (file_path, row, col, err) )
         exit(1)
+
+def crossreference_block(program):
+    stack = []
+    for ip, op in enumerate(program):
+        assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
+        if op[0] == OP_IF:
+            stack.append(ip)
+        elif op[0] == OP_END:
+            if_ip = stack.pop()
+            assert program[if_ip][0] == OP_IF, "End can only close if blocks for now"
+            program[if_ip] = (OP_IF, ip)
+    return program
 
 def find_col(line, start, predicate):
     while start < len(line) and not predicate(line[start]):
@@ -200,7 +259,14 @@ def lex_file(file_path):
                 for (col, token) in lex_line(line)]
 
 def load_program_from_file(program_path):
-    return list(filter(lambda x: not x == None, [parse_token_as_op(token) for token in lex_file(program_path)]))
+    return crossreference_block(
+        list(
+            filter(
+                lambda x: not x == None,
+                [parse_token_as_op(token) for token in lex_file(program_path)]
+            )
+        )
+    )
 
 def usage(program):
         print(f"""
@@ -214,7 +280,10 @@ EXTRA:
 
 def call_cmd(cmd):
     print("[CMD]",cmd)
-    subprocess.call(cmd.split(' '))
+    code = subprocess.call(cmd.split(' '))
+    if code != 0:
+        print(f"[ERROR] Failed running '{cmd}'")
+        exit(code)
 
 def uncons(xs):
     return (xs[0], xs[1:])
@@ -256,6 +325,7 @@ if __name__ == '__main__':
         program = load_program_from_file(program_path)
         print("[INFO] Generating output.asm")
         compile_program(program, "output.asm")
+        # TODO: check for successful compilation
         call_cmd("nasm -felf64 output.asm")
         call_cmd("ld -o output output.o")
         call_cmd("rm -rf output.o")
