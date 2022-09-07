@@ -15,6 +15,7 @@ def iota(reset=False):
 OP_PUSH = iota(True)
 OP_PLUS = iota()
 OP_MINUS = iota()
+OP_EQUAL=iota()
 OP_DUMP = iota()
 COUNT_OPS = iota()
 
@@ -27,13 +28,16 @@ def plus():
 def minus():
     return (OP_MINUS, )
 
+def equal():
+    return (OP_EQUAL, )
+
 def dump():
     return (OP_DUMP, )
 
 def simulate_program(program):
     stack = []
     for op in program:
-        assert COUNT_OPS == 4, "Exhaustive handling of oprations in simulation"
+        assert COUNT_OPS == 5, "Exhaustive handling of oprations in simulation"
 
         if op[0] == OP_PUSH:
             if len(op) < 2:
@@ -47,6 +51,10 @@ def simulate_program(program):
             a = stack.pop()
             b = stack.pop()
             stack.append(b - a)
+        elif op[0] == OP_EQUAL:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(a == b))
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
@@ -55,9 +63,10 @@ def simulate_program(program):
 
 def compile_program(program, out_file_path):
         with open(out_file_path, "w") as out:
-            assert COUNT_OPS == 4, "Exhaustive handling of oprations in compilation"
+            assert COUNT_OPS == 5, "Exhaustive handling of oprations in compilation"
 
             out.write("""
+BITS 64
 segment .text
 dump:
     mov     r8, -3689348814741910323
@@ -89,8 +98,8 @@ dump:
     ret
 global _start
 _start:
-            \n""")
-
+            """)
+##### LOOP OVER OPs IN PROGRAM
             for op in program:
                 if op[0] == OP_PUSH:
                     if len(op) < 2:
@@ -106,7 +115,7 @@ _start:
     pop rbx
     add rax, rbx
     push rax
-                    \n""")
+                    """)
                 elif op[0] == OP_MINUS:
                     out.write("""
 ;; -- minus --
@@ -114,16 +123,26 @@ _start:
     pop rbx
     sub rbx, rax
     push rbx
-                    \n""")
+                    """)
+                elif op[0] == OP_EQUAL:
+                    out.write("""
+;; -- equal --
+    mov rcx, 0
+    mov rdx, 1
+    pop rax
+    pop rbx
+    cmp rax, rbx
+    cmove rcx, rdx
+                    """)
                 elif op[0] == OP_DUMP:
                     out.write("""
 ;; -- dump --
     pop rdi
     call dump
-                    \n""")
+                    """)
                 else:
                     assert False, "unreachable"
-
+##### END LOOP
             out.write("""
 ;; -- exit --
     mov rax, 0x3c
@@ -136,7 +155,7 @@ comment_row = 0
 def parse_token_as_op(token):
     global is_comment
     global comment_row
-    assert COUNT_OPS == 4, "Exhaustive handeling in parse_token_as_op"
+    assert COUNT_OPS == 5, "Exhaustive handeling in parse_token_as_op"
     (file_path, row, col, token) = token
     # Comment handeling
     if is_comment and comment_row == row:
@@ -152,6 +171,8 @@ def parse_token_as_op(token):
         return plus()
     if token == '-':
         return minus()
+    if token == '=':
+        return equal()
     if token == '.':
         return dump()
     if token.isspace():
@@ -193,7 +214,7 @@ SUBCOMMANDS:
         """)
 
 def call_cmd(cmd):
-    print(cmd)
+    print("[CMD]",cmd)
     subprocess.call(cmd.split(' '))
 
 def uncons(xs):
@@ -218,7 +239,9 @@ if __name__ == '__main__':
             print("ERROR: No input file for the simulation")
             exit(1)
         (program_path, argv) = uncons(argv)
+        print("[INFO] Loading program from file", program_path)
         program = load_program_from_file(program_path)
+        print("[INFO] Simulating program")
         simulate_program(program)
     elif subcommand == 'com' or subcommand == 'compile':
         if len(argv) < 1:
@@ -226,7 +249,9 @@ if __name__ == '__main__':
             print("ERROR: No input file for the compilation")
             exit(1)
         (program_path, argv) = uncons(argv)
+        print("[INFO] Loading program from file", program_path)
         program = load_program_from_file(program_path)
+        print("[INFO] Generating output.asm")
         compile_program(program, "output.asm")
         call_cmd("nasm -felf64 output.asm")
         call_cmd("ld -o output output.o")
