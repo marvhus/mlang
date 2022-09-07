@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
-import subprocess
-
 iota_counter=0
 def iota(reset=False):
     global iota_counter
@@ -207,10 +204,12 @@ def load_program_from_file(program_path):
 
 def usage(program):
         print(f"""
-Usage: {program} <SUBCOMMAND> [ARGS]
+Usage: {program} <SUBCOMMAND> <file> [EXTRA]
 SUBCOMMANDS:
     - sim <file>  -- Simulate the program
     - com <file>  -- Compile the program
+EXTRA:
+    -r            -- run the compiled program
         """)
 
 def call_cmd(cmd):
@@ -221,6 +220,9 @@ def uncons(xs):
     return (xs[0], xs[1:])
 
 if __name__ == '__main__':
+    import sys
+    import subprocess
+
     argv = sys.argv
 
     assert len(argv) >= 1, "No program"
@@ -256,6 +258,12 @@ if __name__ == '__main__':
         call_cmd("nasm -felf64 output.asm")
         call_cmd("ld -o output output.o")
         call_cmd("rm -rf output.o")
+
+        if len(argv) >= 1:
+            for flag in argv:
+                if flag == '-r':
+                    print('[INFO] Running compiled program')
+                    call_cmd("./output")
     else:
         usage(program_name)
         assert False, f"Unknown subcommand, {subcommand}"
