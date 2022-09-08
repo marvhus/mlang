@@ -24,45 +24,6 @@ OP_WHILE    = iota()     # 11
 OP_DO       = iota()     # 12
 COUNT_OPS   = iota()     #
 
-def op_push(x):
-    return (OP_PUSH, x)
-
-def op_plus():
-    return (OP_PLUS, )
-
-def op_minus():
-    return (OP_MINUS, )
-
-def op_equal():
-    return (OP_EQUAL, )
-
-def op_dump():
-    return (OP_DUMP, )
-
-def op_if():
-    return (OP_IF, )
-
-def op_else():
-    return (OP_ELSE, )
-
-def op_end():
-    return (OP_END, )
-
-def op_dup():
-    return (OP_DUP, )
-
-def op_greater():
-    return (OP_GREATER, )
-
-def op_less():
-    return (OP_LESS, )
-
-def op_while():
-    return (OP_WHILE, )
-
-def op_do():
-    return (OP_DO, )
-
 def simulate_program(program):
     stack = []
     ip = 0
@@ -296,34 +257,26 @@ def parse_token_as_op(token):
         comment_row = row
         return None
     # Op handeling
-    if token == '+':
-        return op_plus()
-    if token == '-':
-        return op_minus()
-    if token == '=':
-        return op_equal()
-    if token == '.':
-        return op_dump()
-    if token == 'if':
-        return op_if()
-    if token == 'else':
-        return op_else()
-    if token == 'end':
-        return op_end()
-    if token == 'dup':
-        return op_dup()
-    if token == '>':
-        return op_greater()
-    if token == '<':
-        return op_less()
-    if token == 'while':
-        return op_while()
-    if token == 'do':
-        return op_do()
     if token.isspace():
         return None
+    ops = {
+        '+'    : (OP_PLUS, ),
+        '-'    : (OP_MINUS, ),
+        '='    : (OP_EQUAL, ),
+        '.'    : (OP_DUMP, ),
+        '>'    : (OP_GREATER, ),
+        '<'    : (OP_LESS, ),
+        'if'   : (OP_IF, ),
+        'do'   : (OP_DO, ),
+        'dup'  : (OP_DUP, ),
+        'end'  : (OP_END, ),
+        'else' : (OP_ELSE, ),
+        'while': (OP_WHILE, ),
+    }
+    if token in ops:
+        return ops[token]
     try:
-        return op_push(int(token))
+        return (OP_PUSH, int(token))
     except ValueError as err:
         print( "%s:%d:%d: %s" % (file_path, row, col, err) )
         exit(1)
