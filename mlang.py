@@ -229,7 +229,7 @@ addr_{ip}:
                     """)
                 elif op[0] == OP_DUP:
                     out.write(f"""
-;; -- end --
+;; -- dup --
     pop rax
     push rax
     push rax
@@ -268,7 +268,6 @@ addr_{ip}:
     pop rax
     test rax, rax
     jz addr_{op[1]}
-addr_{ip}:
                     """)
                 else:
                     assert False, "unreachable"
