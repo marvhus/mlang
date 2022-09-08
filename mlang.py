@@ -73,10 +73,11 @@ def simulate_program(program):
         elif op[0] == OP_IF:
             assert len(op) >= 2, "`if` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to simulate it"
             a = stack.pop()
-            if a:
+            if a == 0:
                 ip = op[1]
         elif op[0] == OP_ELSE:
-            pass
+            assert len(op) >= 2, "`else` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to simulate it"
+            ip = op[1]
         elif op[0] == OP_END:
             pass
         else:
@@ -173,6 +174,13 @@ _start:
     test rax, rax
     jz addr_{op[1]}
                     """)
+                elif op[0] == OP_ELSE:
+                    assert len(op) >= 2, "`else` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to compile it"
+                    out.write(f"""
+;; -- else --
+jmp addr_{op[1]}
+addr_{ip}:
+                    """)
                 elif op[0] == OP_END:
                     out.write(f"""
 ;; -- end --
@@ -233,10 +241,17 @@ def crossreference_block(program):
         assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
         if op[0] == OP_IF:
             stack.append(ip)
+        elif op[0] == OP_ELSE:
+            if_else_ip = stack.pop()
+            assert program[if_else_ip][0] == OP_IF, "`else` can only be used in `if` blocks for now"
+            program[if_else_ip] = (OP_IF, ip)
+            stack.append(ip)
         elif op[0] == OP_END:
-            if_ip = stack.pop()
-            assert program[if_ip][0] == OP_IF, "End can only close if blocks for now"
-            program[if_ip] = (OP_IF, ip)
+            block_ip = stack.pop()
+            if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
+                program[block_ip] = (program[block_ip][0], ip)
+            else:
+                assert False, "`end` can only be used with `if` and `if-else` blocks for now"
     return program
 
 def find_col(line, start, predicate):
