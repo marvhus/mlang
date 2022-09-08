@@ -221,15 +221,10 @@ jmp addr_{op[1]}
 addr_{ip}:
                     """)
                 elif op[0] == OP_END:
-                    if len(op) >= 2:
-                        out.write(f"""
-;; -- end --
-jmp addr_{op[1]}
-addr_{ip}:
-                        """)
-                        continue
+                    assert len(op) >= 2, "`do` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to compile it"
                     out.write(f"""
 ;; -- end --
+jmp addr_{op[1]}
 addr_{ip}:
                     """)
                 elif op[0] == OP_DUP:
@@ -349,11 +344,10 @@ def crossreference_block(program):
             block_ip = stack.pop()
             if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
                 program[block_ip] = (program[block_ip][0], ip)
+                program[ip] = (OP_END, ip)
             elif program[block_ip][0] == OP_DO:
-                do_ip = block_ip
-                while_ip = program[do_ip][1]
-                program[do_ip] = (OP_DO, ip)
-                program[ip] = (OP_END, while_ip)
+                program[ip] = (OP_END, program[block_ip][1])
+                program[block_ip] = (OP_DO, ip)
             else:
                 assert False, "`end` can only be used with `if`, `else`, and `do` blocks for now"
         elif op[0] == OP_WHILE:
