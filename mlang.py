@@ -9,16 +9,18 @@ def iota(reset=False):
     iota_counter += 1
     return result
 
-OP_PUSH   = iota(True) # 0
-OP_PLUS   = iota()     # 1
-OP_MINUS  = iota()     # 2
-OP_EQUAL  = iota()     # 3
-OP_DUMP   = iota()     # 4
-OP_IF     = iota()     # 5
-OP_ELSE   = iota()     # 6
-OP_END    = iota()     # 7
-OP_DUP    = iota()     # 8
-COUNT_OPS = iota()     #
+OP_PUSH     = iota(True) # 0
+OP_PLUS     = iota()     # 1
+OP_MINUS    = iota()     # 2
+OP_EQUAL    = iota()     # 3
+OP_DUMP     = iota()     # 4
+OP_IF       = iota()     # 5
+OP_ELSE     = iota()     # 6
+OP_END      = iota()     # 7
+OP_DUP      = iota()     # 8
+OP_GREATER  = iota()     # 9
+OP_LESS     = iota()     # 10
+COUNT_OPS   = iota()     #
 
 def op_push(x):
     return (OP_PUSH, x)
@@ -47,11 +49,17 @@ def op_end():
 def op_dup():
     return (OP_DUP, )
 
+def op_greater():
+    return (OP_GREATER, )
+
+def op_less():
+    return (OP_LESS, )
+
 def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 9, "Exhaustive handling of oprations in simulation"
+        assert COUNT_OPS == 11, "Exhaustive handling of oprations in simulation"
 
         op = program[ip]
 
@@ -86,6 +94,14 @@ def simulate_program(program):
             pass
         elif op[0] == OP_DUP:
             stack.append(stack[-1])
+        elif op[0] == OP_GREATER:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b > a))
+        elif op[0] == OP_LESS:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b < a))
         else:
             print(op)
             assert False, "unreachable"
@@ -94,7 +110,7 @@ def simulate_program(program):
 
 def compile_program(program, out_file_path):
         with open(out_file_path, "w") as out:
-            assert COUNT_OPS == 9, "Exhaustive handling of oprations in compilation"
+            assert COUNT_OPS == 11, "Exhaustive handling of oprations in compilation"
 
             out.write("""
 BITS 64
@@ -199,6 +215,28 @@ addr_{ip}:
     push rax
     push rax
                     """)
+                elif op[0] == OP_GREATER:
+                    out.write("""
+;; -- greater --
+    mov rcx, 0
+    mov rdx, 1
+    pop rbx
+    pop rax
+    cmp rax, rbx
+    cmovg rcx, rdx
+    push rcx
+                    """)
+                elif op[0] == OP_LESS:
+                    out.write("""
+;; -- less --
+    mov rcx, 0
+    mov rdx, 1
+    pop rax
+    pop rbx
+    cmp rax, rbx
+    cmovg rcx, rdx
+    push rcx
+                    """)
                 else:
                     assert False, "unreachable"
 ##### END LOOP
@@ -214,7 +252,7 @@ comment_row = 0
 def parse_token_as_op(token):
     global is_comment
     global comment_row
-    assert COUNT_OPS == 9, "Exhaustive handeling in parse_token_as_op"
+    assert COUNT_OPS == 11, "Exhaustive handeling in parse_token_as_op"
     (file_path, row, col, token) = token
     # Comment handeling
     if is_comment and comment_row == row:
@@ -242,6 +280,10 @@ def parse_token_as_op(token):
         return op_end()
     if token == 'dup':
         return op_dup()
+    if token == '>':
+        return op_greater()
+    if token == '<':
+        return op_less()
     if token.isspace():
         return None
     try:
@@ -253,7 +295,7 @@ def parse_token_as_op(token):
 def crossreference_block(program):
     stack = []
     for ip, op in enumerate(program):
-        assert COUNT_OPS == 9, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
+        assert COUNT_OPS == 11, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
