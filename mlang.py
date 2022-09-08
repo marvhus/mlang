@@ -20,6 +20,8 @@ OP_END      = iota()     # 7
 OP_DUP      = iota()     # 8
 OP_GREATER  = iota()     # 9
 OP_LESS     = iota()     # 10
+OP_WHILE    = iota()     # 11
+OP_DO       = iota()     # 12
 COUNT_OPS   = iota()     #
 
 def op_push(x):
@@ -55,11 +57,17 @@ def op_greater():
 def op_less():
     return (OP_LESS, )
 
+def op_while():
+    return (OP_WHILE, )
+
+def op_do():
+    return (OP_DO, )
+
 def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 11, "Exhaustive handling of oprations in simulation"
+        assert COUNT_OPS == 13, "Exhaustive handling of oprations in simulation"
 
         op = program[ip]
 
@@ -91,6 +99,8 @@ def simulate_program(program):
             assert len(op) >= 2, "`else` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to simulate it"
             ip = op[1]
         elif op[0] == OP_END:
+            if len(op) >= 2:
+                ip = op[1]
             pass
         elif op[0] == OP_DUP:
             stack.append(stack[-1])
@@ -102,6 +112,13 @@ def simulate_program(program):
             a = stack.pop()
             b = stack.pop()
             stack.append(int(b < a))
+        elif op[0] == OP_WHILE:
+            pass
+        elif op[0] == OP_DO:
+            assert len(op) >= 2, "`do` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to simulate it"
+            a = stack.pop()
+            if a == 0:
+                ip = op[1]
         else:
             print(op)
             assert False, "unreachable"
@@ -110,7 +127,7 @@ def simulate_program(program):
 
 def compile_program(program, out_file_path):
         with open(out_file_path, "w") as out:
-            assert COUNT_OPS == 11, "Exhaustive handling of oprations in compilation"
+            assert COUNT_OPS == 13, "Exhaustive handling of oprations in compilation"
 
             out.write("""
 BITS 64
@@ -204,6 +221,13 @@ jmp addr_{op[1]}
 addr_{ip}:
                     """)
                 elif op[0] == OP_END:
+                    if len(op) >= 2:
+                        out.write(f"""
+;; -- end --
+jmp addr_{op[1]}
+addr_{ip}:
+                        """)
+                        continue
                     out.write(f"""
 ;; -- end --
 addr_{ip}:
@@ -237,6 +261,20 @@ addr_{ip}:
     cmovg rcx, rdx
     push rcx
                     """)
+                elif op[0] == OP_WHILE:
+                    out.write(f"""
+;; -- while --
+addr_{ip}:
+                    """)
+                elif op[0] == OP_DO:
+                    assert len(op) >= 2, "`do` instruction does not have reference to the end of it's block. Please call crossrefernce_blocks() on the program before trying to compile it"
+                    out.write(f"""
+;; -- do --
+    pop rax
+    test rax, rax
+    jz addr_{op[1]}
+addr_{ip}:
+                    """)
                 else:
                     assert False, "unreachable"
 ##### END LOOP
@@ -252,7 +290,7 @@ comment_row = 0
 def parse_token_as_op(token):
     global is_comment
     global comment_row
-    assert COUNT_OPS == 11, "Exhaustive handeling in parse_token_as_op"
+    assert COUNT_OPS == 13, "Exhaustive handeling in parse_token_as_op"
     (file_path, row, col, token) = token
     # Comment handeling
     if is_comment and comment_row == row:
@@ -284,6 +322,10 @@ def parse_token_as_op(token):
         return op_greater()
     if token == '<':
         return op_less()
+    if token == 'while':
+        return op_while()
+    if token == 'do':
+        return op_do()
     if token.isspace():
         return None
     try:
@@ -295,7 +337,7 @@ def parse_token_as_op(token):
 def crossreference_block(program):
     stack = []
     for ip, op in enumerate(program):
-        assert COUNT_OPS == 11, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
+        assert COUNT_OPS == 13, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
@@ -307,8 +349,19 @@ def crossreference_block(program):
             block_ip = stack.pop()
             if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
                 program[block_ip] = (program[block_ip][0], ip)
+            elif program[block_ip][0] == OP_DO:
+                do_ip = block_ip
+                while_ip = program[do_ip][1]
+                program[do_ip] = (OP_DO, ip)
+                program[ip] = (OP_END, while_ip)
             else:
-                assert False, "`end` can only be used with `if` and `if-else` blocks for now"
+                assert False, "`end` can only be used with `if`, `else`, and `do` blocks for now"
+        elif op[0] == OP_WHILE:
+            stack.append(ip)
+        elif op[0] == OP_DO:
+            while_ip = stack.pop()
+            program[ip] = (OP_DO, while_ip)
+            stack.append(ip)
     return program
 
 def find_col(line, start, predicate):
