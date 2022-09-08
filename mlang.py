@@ -17,7 +17,8 @@ OP_DUMP   = iota()     # 4
 OP_IF     = iota()     # 5
 OP_ELSE   = iota()     # 6
 OP_END    = iota()     # 7
-COUNT_OPS = iota()     # 8
+OP_DUP    = iota()     # 8
+COUNT_OPS = iota()     #
 
 def op_push(x):
     return (OP_PUSH, x)
@@ -43,11 +44,14 @@ def op_else():
 def op_end():
     return (OP_END, )
 
+def op_dup():
+    return (OP_DUP, )
+
 def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 8, "Exhaustive handling of oprations in simulation"
+        assert COUNT_OPS == 9, "Exhaustive handling of oprations in simulation"
 
         op = program[ip]
 
@@ -80,6 +84,8 @@ def simulate_program(program):
             ip = op[1]
         elif op[0] == OP_END:
             pass
+        elif op[0] == OP_DUP:
+            stack.append(stack[-1])
         else:
             print(op)
             assert False, "unreachable"
@@ -88,7 +94,7 @@ def simulate_program(program):
 
 def compile_program(program, out_file_path):
         with open(out_file_path, "w") as out:
-            assert COUNT_OPS == 8, "Exhaustive handling of oprations in compilation"
+            assert COUNT_OPS == 9, "Exhaustive handling of oprations in compilation"
 
             out.write("""
 BITS 64
@@ -186,6 +192,13 @@ addr_{ip}:
 ;; -- end --
 addr_{ip}:
                     """)
+                elif op[0] == OP_DUP:
+                    out.write(f"""
+;; -- end --
+    pop rax
+    push rax
+    push rax
+                    """)
                 else:
                     assert False, "unreachable"
 ##### END LOOP
@@ -201,7 +214,7 @@ comment_row = 0
 def parse_token_as_op(token):
     global is_comment
     global comment_row
-    assert COUNT_OPS == 8, "Exhaustive handeling in parse_token_as_op"
+    assert COUNT_OPS == 9, "Exhaustive handeling in parse_token_as_op"
     (file_path, row, col, token) = token
     # Comment handeling
     if is_comment and comment_row == row:
@@ -227,6 +240,8 @@ def parse_token_as_op(token):
         return op_else()
     if token == 'end':
         return op_end()
+    if token == 'dup':
+        return op_dup()
     if token.isspace():
         return None
     try:
@@ -238,7 +253,7 @@ def parse_token_as_op(token):
 def crossreference_block(program):
     stack = []
     for ip, op in enumerate(program):
-        assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
+        assert COUNT_OPS == 9, "Exhaustive handling of ops in crossreference_block. Keep in mind, not all of the ops need to be implemented here. Only those that form blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
@@ -339,11 +354,11 @@ if __name__ == '__main__':
         print("[INFO] Loading program from file", program_path)
         program = load_program_from_file(program_path)
         print("[INFO] Generating output.asm")
-        compile_program(program, "output.asm")
+        compile_program(program, "./bin/output.asm")
         # TODO: check for successful compilation
-        call_cmd("nasm -felf64 output.asm")
-        call_cmd("ld -o output output.o")
-        call_cmd("rm -rf output.o")
+        call_cmd("nasm -felf64 ./bin/output.asm")
+        call_cmd("ld -o ./bin/output ./bin/output.o")
+        call_cmd("rm -rf ./bin/output.o")
         compiled = True
 
         if len(argv) >= 1:
@@ -353,7 +368,7 @@ if __name__ == '__main__':
                         print("[ERROR] Program was not compiled, skipping '-r'")
                         continue
                     print('[INFO] Running compiled program')
-                    call_cmd("./output")
+                    call_cmd("./bin/output")
     else:
         usage(program_name)
         assert False, f"Unknown subcommand, {subcommand}"
